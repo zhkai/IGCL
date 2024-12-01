@@ -61,7 +61,7 @@ def negative_sampling(data, index, length, delta=0.05):
 
 
 def read_dataset(train_filename, test_filename, label_filename, normalize=True, file_logger=None, ratio=0.01,
-                 negative_sample=False, predicted=True, pre_window=16):
+                 negative_sample=False, predicted=True, pre_window=4):
     '''
         file_name: the path of the file, such as "./datasets/train/AIOps/phase2_train.pkl"
         normalize: whether to normalize the data.
