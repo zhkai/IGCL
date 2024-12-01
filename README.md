@@ -1,5 +1,5 @@
 # IGCL
-Here is the Appendix, codes and data for our paper 'Unsupervised Time Series Anomaly Prediction with Importance-based Generative Contrastive Learning'.
+Here is the Appendix, codes and data for our submitted paper.
 
 ## Data
 Download the data from https://github.com/zhkai/IGCL/releases/tag/untagged-51230182899b9c8f8abf
