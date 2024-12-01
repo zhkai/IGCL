@@ -17,7 +17,6 @@ class nconv(nn.Module):
         x = torch.einsum('ncwl,vw->ncvl', (x, A))
         return x.contiguous()
 
-
 class wconv(nn.Module):
     def __init__(self):
         super(wconv, self).__init__()
