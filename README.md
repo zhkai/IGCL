@@ -11,3 +11,6 @@ Download the data from https://github.com/zhkai/IGCL/releases/tag/untagged-51230
 
 ## Runing
 run with 'python main.py'
+
+## Appendix
+Download Appendix.pdf to see our appendix.
