@@ -33,7 +33,7 @@ from utils.metrics import SD_autothreshold, MAD_autothreshold, IQR_autothreshold
 from utils.utils import make_result_dataframe
 from sklearn.metrics import f1_score
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 hyp_kernel_size = 3
 hyp_blocks = 2
 hyp_layers = 2
@@ -704,9 +704,9 @@ if __name__ == '__main__':
     parser.add_argument('--rolling_size', type=int, default=32)
     parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--milestone_epochs', type=int, default=50)
-    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--gamma', type=float, default=0.95)
-    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--weight_decay', type=float, default=1e-8)
     parser.add_argument('--early_stopping', type=str2bool, default=True)
     parser.add_argument('--loss_function', type=str, default='mse')
