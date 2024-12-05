@@ -144,6 +144,8 @@ def read_dataset(train_filename, test_filename, label_filename, normalize=True, 
     '''
 
     if predicted:
+        if pre_window != 4:
+            exit()
         # get the test data length
         predicted_length = test_data.shape[0]
         target = np.zeros((predicted_length, 1))
