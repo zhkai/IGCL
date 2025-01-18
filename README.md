@@ -1,5 +1,5 @@
 # IGCL
-Here is the Appendix, codes and data for our submitted paper.
+Here are the codes for our submitted paper.
 
 
 ## Environment 
