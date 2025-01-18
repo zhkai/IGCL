@@ -10,5 +10,4 @@ Here is the Appendix, codes and data for our submitted paper.
 ## Runing
 run with 'python main.py'
 
-## Appendix
-Download Appendix.pdf to see our appendix.
+
