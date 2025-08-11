@@ -5,6 +5,7 @@ import matplotlib as mpl
 from sklearn import preprocessing
 from sklearn.covariance import EmpiricalCovariance, GraphicalLasso
 from utils.outputs import GWNOutput
+import layer
 
 mpl.use('Agg')
 import matplotlib.pyplot as plt
@@ -18,6 +19,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
 from sklearn.metrics import precision_score, recall_score, auc, precision_recall_curve, roc_curve, confusion_matrix
 from torch.optim import Adam, lr_scheduler
 from utils.config import GWNConfig
@@ -83,6 +85,23 @@ class gcn(nn.Module):
         return h
 
 
+class Diffuse(nn.Module):
+    def __init__(self, in_dim, out_dim, step=3):
+        super(Diffuse, self).__init__()
+        self.step = step
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.linear = nn.Linear(self.in_dim, self.out_dim, bias=False)
+        self.diffusion = nn.ModuleList(
+            [nn.Linear(self.out_dim, self.out_dim, bias=False) for i in range(self.step)])
+
+    def forward(self, z):
+        z = self.linear(z)
+        for l in self.diffusion:
+            z = l(z)
+        return z
+
+
 class gwnet(nn.Module):
     # def __init__(self, device, num_nodes, dropout=0.3, supports=None, gcn_bool=True, addaptadj=True, aptinit=None, in_dim=2,out_dim=12,residual_channels=32,dilation_channels=32,skip_channels=256,end_channels=512,kernel_size=2,blocks=4,layers=2):
     def __init__(self, file_name, config, graph_init):
@@ -103,8 +122,8 @@ class gwnet(nn.Module):
         self.num_nodes = config.num_nodes
         self.residual_channels = config.h_dim
         self.dilation_channels = config.h_dim
-        self.skip_channels = 32
-        self.end_channels = 32
+        self.skip_channels = config.h_dim * 8
+        self.end_channels = config.h_dim * 8
         self.kernel_size = hyp_kernel_size
         self.blocks = hyp_blocks
         self.layers = hyp_layers
@@ -156,6 +175,8 @@ class gwnet(nn.Module):
         self.start_conv = nn.Conv2d(in_channels=self.in_dim,
                                     out_channels=self.residual_channels,
                                     kernel_size=(1, 1))
+
+        self.diffusion = Diffuse(self.rolling_size, self.out_dim)
 
         addaptadj = True
         aptinit = torch.from_numpy(graph_init)
@@ -242,9 +263,9 @@ class gwnet(nn.Module):
         else:
             x = input
         # file_logger.info("input size: ", x.size())
-        #x = F.dropout(x, self.dropout, training=self.training)
+        # x = F.dropout(x, self.dropout, training=self.training)
         x = self.start_conv(x)
-        #x = F.dropout(x, self.dropout, training=self.training)
+        # x = F.dropout(x, self.dropout, training=self.training)
         skip = 0
 
         # calculate the current adaptive adj matrix once per iteration
@@ -317,19 +338,21 @@ class gwnet(nn.Module):
         # get batch data
         # if self.preprocessing == False or self.use_overlapping == False:
         #     train_input, test_input, test_label = np.expand_dims(np.transpose(train_input), axis=0), np.expand_dims(np.transpose(test_input), axis=0), np.expand_dims(test_label, axis=0)
-        train_data = get_loader(input=train_input, label=train_input[:, self.rolling_size-self.out_dim:, :], batch_size=self.batch_size, from_numpy=True,
+        train_data = get_loader(input=train_input, label=train_input[:, self.rolling_size - self.out_dim:, :],
+                                batch_size=self.batch_size, from_numpy=True,
                                 drop_last=False, shuffle=True)
-        valid_data = get_loader(input=valid_input, label=valid_label[:, self.rolling_size-self.out_dim:, :], batch_size=self.batch_size, from_numpy=True,
+        valid_data = get_loader(input=valid_input, label=valid_label[:, self.rolling_size - self.out_dim:, :],
+                                batch_size=self.batch_size, from_numpy=True,
                                 drop_last=False, shuffle=False)
         test_data = get_loader(input=test_input, label=test_label, batch_size=self.batch_size, from_numpy=True,
                                drop_last=False, shuffle=False)
         min_valid_loss, all_patience, cur_patience, best_epoch = 1e20, 2, 1, 0
         if self.load_model == True and self.continue_training == False:
-            exit()
+            # exit()
             epoch_valid_losses = [-1]
             self.load_state_dict(torch.load(self.load_model_path))
         elif self.load_model == True and self.continue_training == True:
-            exit()
+            # exit()
             self.load_state_dict(torch.load(self.load_model_path))
             # train model
             epoch_losses = []
@@ -384,14 +407,23 @@ class gwnet(nn.Module):
                 # opt.zero_grad()
                 for i, (batch_x, batch_y) in enumerate(train_data):
                     opt.zero_grad()
-                    batch_x = batch_x.to(device)
+                    batch_x = batch_x.to(device)  # b l n
                     batch_y = batch_y.to(device)
+                    z_ = torch.randn_like(batch_y)
+                    z = torch.cat((batch_x[:, :self.rolling_size - self.out_dim, :],
+                                   batch_x[:, self.rolling_size - self.out_dim:, :] + z_), dim=1)
+                    z = Variable(z, requires_grad=False)
+                    neg_z = self.diffusion(z)
+                    neg_x = torch.cat((batch_x[:, :self.rolling_size - self.out_dim, :],
+                                       batch_x[:, self.rolling_size - self.out_dim:, :] + neg_z), dim=1)
+                    neg_x = Variable(neg_x, requires_grad=False)
+                    neg_x_reconstruct = self.forward(neg_x)
                     batch_x_reconstruct = self.forward(batch_x)
                     '''
                     predict_y = np.sum((batch_x_reconstruct - batch_x).detach().cpu().numpy() ** 2, axis=2,
                                        keepdims=False)
                     '''
-                    batch_loss = loss_fn(batch_x_reconstruct, batch_y)
+                    batch_loss = loss_fn(batch_x_reconstruct, batch_y)-loss_fn(neg_x_reconstruct, batch_y)+loss_fn(neg_z, 0)
                     batch_loss.backward()
                     opt.step()
                     sched.step()
@@ -443,7 +475,8 @@ class gwnet(nn.Module):
                 batch_y = batch_y[:, -1, :]
                 batch_x = batch_x.to(device)
                 batch_x_reconstruct = self.forward(batch_x)
-                predict_y = np.sum((batch_x_reconstruct - batch_x[:, self.rolling_size-self.out_dim:, :]).detach().cpu().numpy() ** 2, axis=2, keepdims=False)
+                predict_y = np.sum((batch_x_reconstruct - batch_x[:, self.rolling_size - self.out_dim:,
+                                                          :]).detach().cpu().numpy() ** 2, axis=2, keepdims=False)
                 predict_y = np.sum(predict_y, axis=1, keepdims=True)
 
                 cat_xs.append(predict_y)
@@ -472,7 +505,7 @@ def RunModel(train_filename, test_filename, label_filename, config, ratio):
     standsacle.fit(train_data[:-1])
     graph_train_data = standsacle.transform(train_data[:-1], copy=True)
     cov_init = EmpiricalCovariance(store_precision=True, assume_centered=True).fit(graph_train_data)
-    #cov_init = GraphicalLasso(alpha=.001,  mode='cd', tol=1e-4, enet_tol=1e-4, max_iter=100, assume_centered=True).fit(train_data)
+    # cov_init = GraphicalLasso(alpha=.001,  mode='cd', tol=1e-4, enet_tol=1e-4, max_iter=100, assume_centered=True).fit(train_data)
 
     adj_mx_init = np.abs(cov_init.precision_)
     d_init = np.array(adj_mx_init.sum(1))
@@ -702,7 +735,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_overlapping', type=str2bool, default=True)
     parser.add_argument('--ratio', type=float, default=0.05)
     parser.add_argument('--rolling_size', type=int, default=32)
-    parser.add_argument('--epochs', type=int, default=200)
+    parser.add_argument('--epochs', type=int, default=1)
     parser.add_argument('--milestone_epochs', type=int, default=50)
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--gamma', type=float, default=0.95)
@@ -827,13 +860,13 @@ if __name__ == '__main__':
                     os.makedirs('./results/{}/'.format(config.dataset))
                 result_dataframe.to_csv(
                     './results/{}/EACH_hdim{}_roll{}_out{}_{}_b{}-l{}-k{}-pre{}_pid={}.csv'.format(config.dataset,
-                                                                                                     config.h_dim,
-                                                                                                     config.rolling_size,
+                                                                                                   config.h_dim,
+                                                                                                   config.rolling_size,
                                                                                                    config.out_dim,
-                                                                                                     train_file.stem,
-                                                                                                     hyp_blocks,
-                                                                                                     hyp_layers,
-                                                                                                     hyp_kernel_size,
-                                                                                               hyp_pre_window,
-                                                                                                     config.pid),
+                                                                                                   train_file.stem,
+                                                                                                   hyp_blocks,
+                                                                                                   hyp_layers,
+                                                                                                   hyp_kernel_size,
+                                                                                                   hyp_pre_window,
+                                                                                                   config.pid),
                     index=False)
