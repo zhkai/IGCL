@@ -2,7 +2,7 @@
 Here are the codes for our submitted paper.
 
 # Data
-Find and download all datasets at https://github.com/decisionintelligence/TAB (Data preparation) and process the data.
+Find and download all datasets at https://github.com/decisionintelligence/TAB (Data preparation).
 
 ## Environment 
 -  Python                    3.6
