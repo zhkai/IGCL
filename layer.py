@@ -7,9 +7,9 @@ import torchdiffeq
 import numbers
 
 
-class nconv(nn.Module):
+class nconv1(nn.Module):
     def __init__(self):
-        super(nconv,self).__init__()
+        super(nconv1,self).__init__()
 
     def forward(self,x, A):
         # x.shape = (batch, dim, nodes, seq_len)
@@ -37,9 +37,9 @@ class dy_nconv(nn.Module):
         return x.contiguous()
 
 
-class linear(nn.Module):
+class linear1(nn.Module):
     def __init__(self,c_in,c_out,bias=True):
-        super(linear,self).__init__()
+        super(linear1,self).__init__()
         self.mlp = torch.nn.Conv2d(c_in, c_out, kernel_size=(1, 1), padding=(0,0), stride=(1,1), bias=bias)
 
     def forward(self,x):
