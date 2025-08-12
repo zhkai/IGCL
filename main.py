@@ -420,13 +420,13 @@ class gwnet(nn.Module):
                     neg_x = torch.cat((batch_x[:, :self.rolling_size - self.out_dim, :],
                                        batch_x[:, self.rolling_size - self.out_dim:, :] + neg_z), dim=1)
                     neg_x = Variable(neg_x, requires_grad=False)
-                    neg_x_reconstruct = self.forward(neg_x)
+                    neg_x_re = self.forward(neg_x)
                     batch_x_reconstruct = self.forward(batch_x)
                     '''
                     predict_y = np.sum((batch_x_reconstruct - batch_x).detach().cpu().numpy() ** 2, axis=2,
                                        keepdims=False)
                     '''
-                    batch_loss = loss_fn(batch_x_reconstruct, batch_y)-loss_fn(neg_x_reconstruct, batch_y)+loss_fn(neg_z, torch.zeros_like(neg_z))
+                    batch_loss=loss_fn(batch_x_reconstruct, batch_y)-loss_fn(neg_x_re, batch_y)+0.5*loss_fn(neg_z, torch.zeros_like(neg_z))
                     batch_loss.backward()
                     opt.step()
                     sched.step()
@@ -873,6 +873,7 @@ if __name__ == '__main__':
                                                                                                    hyp_pre_window,
                                                                                                    config.pid),
                     index=False)
+
 
 
 
