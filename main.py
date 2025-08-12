@@ -96,9 +96,11 @@ class Diffuse(nn.Module):
             [nn.Linear(self.out_dim, self.out_dim, bias=False) for i in range(self.step)])
 
     def forward(self, z):
+        z = z.transpose(1, 2)
         z = self.linear(z)
         for l in self.diffusion:
             z = l(z)
+        z = z.transpose(1, 2)
         return z
 
 
@@ -871,4 +873,5 @@ if __name__ == '__main__':
                                                                                                    hyp_pre_window,
                                                                                                    config.pid),
                     index=False)
+
 
