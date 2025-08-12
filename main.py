@@ -426,7 +426,7 @@ class gwnet(nn.Module):
                     predict_y = np.sum((batch_x_reconstruct - batch_x).detach().cpu().numpy() ** 2, axis=2,
                                        keepdims=False)
                     '''
-                    batch_loss = loss_fn(batch_x_reconstruct, batch_y)-loss_fn(neg_x_reconstruct, batch_y)+loss_fn(neg_z, 0)
+                    batch_loss = loss_fn(batch_x_reconstruct, batch_y)-loss_fn(neg_x_reconstruct, batch_y)+loss_fn(neg_z, torch.zeros_like(neg_z))
                     batch_loss.backward()
                     opt.step()
                     sched.step()
@@ -873,5 +873,6 @@ if __name__ == '__main__':
                                                                                                    hyp_pre_window,
                                                                                                    config.pid),
                     index=False)
+
 
 
