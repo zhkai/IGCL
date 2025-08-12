@@ -241,6 +241,7 @@ class gwnet(nn.Module):
                                     kernel_size=(1, 1),
                                     bias=True)
         '''
+        # Options 
         self.end_conv_1 = nn.Conv2d(in_channels=self.skip_channels,
                                     out_channels=self.end_channels,
                                     kernel_size=(1, 1),
@@ -870,3 +871,4 @@ if __name__ == '__main__':
                                                                                                    hyp_pre_window,
                                                                                                    config.pid),
                     index=False)
+
